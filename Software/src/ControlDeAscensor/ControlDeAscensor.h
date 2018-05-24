@@ -34,6 +34,20 @@ typedef enum PUERTA
   N_ESTADOS_PUERTA
 }T_PUERTA;
 
+typedef struct BOTONES
+{
+  T_UBYTE Cabina0_Planta0;
+  T_UBYTE Cabina0_Planta1;
+  T_UBYTE Cabina0_Planta2;
+  T_UBYTE Cabina1_Planta0;
+  T_UBYTE Cabina1_Planta1;
+  T_UBYTE Cabina1_Planta2;
+  T_UBYTE Planta0_Sube;
+  T_UBYTE Planta1_Sube;
+  T_UBYTE Planta1_Baja;
+  T_UBYTE Planta2_Baja;
+}T_BOTONES;
+
 /* Definicion de pines */
 #define Cabina0_Planta0_Led		14
 #define Cabina0_Planta1_Led	15

@@ -94,8 +94,15 @@ T_PLANTA rub_PlantaActual[N_CABINAS]; //Arreglo de variables donde se almacena l
 T_CABINA rub_MuestraCabina; //Variable que almacena que cabina se esta mostrando en lass salidas de los indicadores
 T_DIRECCION re_DireccionActual[N_CABINAS]; //Arreglo de variables que almacena la direccion actual de las cabinas
 T_PUERTA re_EstadoDePuerta[N_CABINAS]; //Arreglo que almacena el estado actual de la puerta de cada cabina
-T_UBYTE rub_TestModeEnabled;
-T_UBYTE rub_TestStep;
+T_UBYTE rub_TestModeEnabled; //Variable que habilita o no los tests
+T_UBYTE rub_TestStep; //Variable que define step de prueba
+
+T_BOTONES rs_EstadoBotonesActual; //Estructura donde se almacena el estado actual de los botones
+T_BOTONES rs_EstadoBotonesAnterior; //Estructura donde se almacena un estado anterior de los botones
+T_UBYTE rub_PeticionPendiente; //Variable que indica si hay una accion pendiente de ejecutar
+T_PLANTA re_Peticion; //Variable que almacena la peticion a realizar
+T_CABINA re_PeticionCabina; //Cabina que ejecutara la peticion
+T_DIRECCION re_UltimaDireccion[N_CABINAS]; //Arreglo que indica cual fue su ultima direccion de movimiento
 
 /* Declaracion de funciones */
 void app_InitPins(void);
@@ -140,10 +147,10 @@ xTaskCreate(
     ,  NULL );
 
 /* Modo Prueba */
-rub_TestModeEnabled = true;//Prueba Activada
-//Modo prueba esta activado
-//if(true == rub_TestModeEnabled)
-//{
+rub_TestModeEnabled = false;//Prueba Activada
+//Modo prueba esta desactivado
+if(true == rub_TestModeEnabled)
+{
   /* Creacion de Tarea de prueba */
   xTaskCreate(
       app_TestSequence //Funcion que sera añadida al scheduler
@@ -154,9 +161,9 @@ rub_TestModeEnabled = true;//Prueba Activada
       ,  NULL );
       //Inicializar maquina de estados de prueba
       rub_TestStep = 0;
-//}
-//else
-//{
+}
+else
+{
 
 /* Creacion de Tarea de muestreo de entradas */
 xTaskCreate(
@@ -175,7 +182,7 @@ xTaskCreate(
     ,  NULL
     ,  0  // Prioridad (3 es la mas alta)
     ,  NULL );
-//}
+}
 }
 
 /***********************************************************************************
@@ -242,12 +249,41 @@ void app_InitSys(void)
   rub_MuestraCabina = CABINA0; //Inicia Mostrando Cabina 0
 
   //Inicializa direcciones
-  re_DireccionActual[CABINA0] = SUBIENDO; //Inicia cabina 0 subiendo
-  re_DireccionActual[CABINA1] = SUBIENDO; //Inicia cabina 1 subiendo
-
+  re_DireccionActual[CABINA0] = DETENIDO; //Inicia cabina 0
+  re_DireccionActual[CABINA1] = DETENIDO; //Inicia cabina 1
+  re_UltimaDireccion[CABINA0] = SUBIENDO; //Inicializa Ultima Direccion de cabina 0
+  re_UltimaDireccion[CABINA1] = SUBIENDO; //Inicializa Ultima Direccion de cabina 1
+  
   //Inicializa la puerta cerrada
   re_EstadoDePuerta[CABINA0] = CERRADA; //Inicia puerta cerrada en cabina 0
   re_EstadoDePuerta[CABINA1] = CERRADA; //Inicia puerta cerrada en cabina 1
+
+  //Inicializa estado actual
+  rs_EstadoBotonesActual.Cabina0_Planta0 = false; //Inicializa estado de la entrada asignada al boton de Cabina 0 Planta 0
+  rs_EstadoBotonesActual.Cabina0_Planta1 = false; //Inicializa estado de la entrada asignada al boton de Cabina 0 Planta 1
+  rs_EstadoBotonesActual.Cabina0_Planta2 = false; //Inicializa estado de la entrada asignada al boton de Cabina 0 Planta 2
+  rs_EstadoBotonesActual.Cabina1_Planta0 = false; //Inicializa estado de la entrada asignada al boton de Cabina 1 Planta 0
+  rs_EstadoBotonesActual.Cabina1_Planta1 = false; //Inicializa estado de la entrada asignada al boton de Cabina 1 Planta 1
+  rs_EstadoBotonesActual.Cabina1_Planta2 = false; //Inicializa estado de la entrada asignada al boton de Cabina 1 Planta 2
+  rs_EstadoBotonesActual.Planta0_Sube = false; //Inicializa estado de la entrada asignada al boton de Planta 0 Sube
+  rs_EstadoBotonesActual.Planta1_Sube = false; //Inicializa estado de la entrada asignada al boton de Planta 1 Sube
+  rs_EstadoBotonesActual.Planta1_Baja = false; //Inicializa estado de la entrada asignada al boton de Planta 1 Baja
+  rs_EstadoBotonesActual.Planta2_Baja = false; //Inicializa estado de la entrada asignada al boton de Planta 2 Baja
+
+  //Inicializa estado anterior
+  rs_EstadoBotonesAnterior.Cabina0_Planta0 = false; //Inicializa estado de la entrada asignada al boton de Cabina 0 Planta 0
+  rs_EstadoBotonesAnterior.Cabina0_Planta1 = false; //Inicializa estado de la entrada asignada al boton de Cabina 0 Planta 1
+  rs_EstadoBotonesAnterior.Cabina0_Planta2 = false; //Inicializa estado de la entrada asignada al boton de Cabina 0 Planta 2
+  rs_EstadoBotonesAnterior.Cabina1_Planta0 = false; //Inicializa estado de la entrada asignada al boton de Cabina 1 Planta 0
+  rs_EstadoBotonesAnterior.Cabina1_Planta1 = false; //Inicializa estado de la entrada asignada al boton de Cabina 1 Planta 1
+  rs_EstadoBotonesAnterior.Cabina1_Planta2 = false; //Inicializa estado de la entrada asignada al boton de Cabina 1 Planta 2
+  rs_EstadoBotonesAnterior.Planta0_Sube = false; //Inicializa estado de la entrada asignada al boton de Planta 0 Sube
+  rs_EstadoBotonesAnterior.Planta1_Sube = false; //Inicializa estado de la entrada asignada al boton de Planta 1 Sube
+  rs_EstadoBotonesAnterior.Planta1_Baja = false; //Inicializa estado de la entrada asignada al boton de Planta 1 Baja
+  rs_EstadoBotonesAnterior.Planta2_Baja = false; //Inicializa estado de la entrada asignada al boton de Planta 2 Baja
+
+  //Inicializa peticion pendiente
+  rub_PeticionPendiente = false;
 }
 
 /*****************************************************************************************************/
@@ -424,7 +460,173 @@ void app_InputMngr( void *pvParameters )
   (void) pvParameters;
   for(;;)
   {
-    vTaskDelay( 1000 / portTICK_PERIOD_MS );
+    //Periodo de tarea
+    vTaskDelay( 100 / portTICK_PERIOD_MS );
+
+    //Actualiza estado anterior
+    rs_EstadoBotonesAnterior = rs_EstadoBotonesActual; //Copia toda la estructura actual a la anterior
+
+    //Actualiza estado actual
+    rs_EstadoBotonesActual.Cabina0_Planta0 = digitalRead(Cabina0_Planta0_Boton); //Leer estado de la entrada asignada al boton de Cabina 0 Planta 0
+    rs_EstadoBotonesActual.Cabina0_Planta1 = digitalRead(Cabina0_Planta1_Boton); //Leer estado de la entrada asignada al boton de Cabina 0 Planta 1
+    rs_EstadoBotonesActual.Cabina0_Planta2 = digitalRead(Cabina0_Planta2_Boton); //Leer estado de la entrada asignada al boton de Cabina 0 Planta 2
+    rs_EstadoBotonesActual.Cabina1_Planta0 = digitalRead(Cabina1_Planta0_Boton); //Leer estado de la entrada asignada al boton de Cabina 1 Planta 0
+    rs_EstadoBotonesActual.Cabina1_Planta1 = digitalRead(Cabina1_Planta1_Boton); //Leer estado de la entrada asignada al boton de Cabina 1 Planta 1
+    rs_EstadoBotonesActual.Cabina1_Planta2 = digitalRead(Cabina1_Planta2_Boton); //Leer estado de la entrada asignada al boton de Cabina 1 Planta 2
+    rs_EstadoBotonesActual.Planta0_Sube = digitalRead(Planta0_Sube_Boton); //Leer estado de la entrada asignada al boton de Planta 0 Sube
+    rs_EstadoBotonesActual.Planta1_Sube = digitalRead(Planta1_Sube_Boton); //Leer estado de la entrada asignada al boton de Planta 1 Sube
+    rs_EstadoBotonesActual.Planta1_Baja = digitalRead(Planta1_Baja_Boton); //Leer estado de la entrada asignada al boton de Planta 1 Baja
+    rs_EstadoBotonesActual.Planta2_Baja = digitalRead(Planta2_Baja_Boton); //Leer estado de la entrada asignada al boton de Planta 2 Baja
+
+    //Prepara peticion
+    rub_PeticionPendiente = true;
+    
+    //Hubo presion de Planta 0 en cabina 0?
+    if( ( false == rs_EstadoBotonesActual.Cabina0_Planta0 ) && 
+        ( true  == rs_EstadoBotonesAnterior.Cabina0_Planta0 ))
+    {//SI
+      //Peticion de ir a planta 0
+      re_Peticion = PLANTA0;
+      //Cabina 0 ejecutara peticion
+      re_PeticionCabina = CABINA0;
+    }
+    //Hubo presion de Planta 1 en cabina 0?
+    else if( ( false == rs_EstadoBotonesActual.Cabina0_Planta1 ) && 
+             ( true  == rs_EstadoBotonesAnterior.Cabina0_Planta1 ))
+    {//SI
+      //Peticion de ir a planta 1
+      re_Peticion = PLANTA1;
+      //Cabina 0 ejecutara peticion
+      re_PeticionCabina = CABINA0;
+    }
+    //Hubo presion de Planta 2 en cabina 0?
+    else if( ( false == rs_EstadoBotonesActual.Cabina0_Planta2 ) && 
+             ( true  == rs_EstadoBotonesAnterior.Cabina0_Planta2 ))
+    {//SI
+      //Peticion de ir a planta 2
+      re_Peticion = PLANTA2;
+      //Cabina 0 ejecutara peticion
+      re_PeticionCabina = CABINA0;
+    }
+    //Hubo presion de Planta 0 en cabina 1?
+    else if( ( false == rs_EstadoBotonesActual.Cabina1_Planta0 ) && 
+             ( true  == rs_EstadoBotonesAnterior.Cabina1_Planta0 ))
+    {//SI
+      //Peticion de ir a planta 0
+      re_Peticion = PLANTA0;
+      //Cabina 1 ejecutara peticion
+      re_PeticionCabina = CABINA1;
+    }
+    //Hubo presion de Planta 1 en cabina 1?
+    else if( ( false == rs_EstadoBotonesActual.Cabina1_Planta1 ) && 
+             ( true  == rs_EstadoBotonesAnterior.Cabina1_Planta1 ))
+    {//SI
+      //Peticion de ir a planta 1
+      re_Peticion = PLANTA1;
+      //Cabina 1 ejecutara peticion
+      re_PeticionCabina = CABINA1;
+    }
+    //Hubo presion de Planta 2 en cabina 1?
+    else if( ( false == rs_EstadoBotonesActual.Cabina1_Planta2 ) && 
+             ( true  == rs_EstadoBotonesAnterior.Cabina1_Planta2 ))
+    {//SI
+      //Peticion de ir a planta 2
+      re_Peticion = PLANTA2;
+      //Cabina 1 ejecutara peticion
+      re_PeticionCabina = CABINA1;
+    }
+    //Hubo presion de Subir en planta 0?
+    else if( ( false == rs_EstadoBotonesActual.Planta0_Sube ) && 
+             ( true  == rs_EstadoBotonesAnterior.Planta0_Sube ))
+    {//SI
+      //Peticion de ir a planta 0
+      re_Peticion = PLANTA0;
+
+      //Selecciona cabina que sera llamada
+      if(rub_PlantaActual[CABINA0] <= rub_PlantaActual[CABINA1])
+      {
+        //Cabina 0 ejecutara peticion
+        re_PeticionCabina = CABINA0;
+      }
+      else
+      {
+        //Cabina 1 ejecutara peticion
+        re_PeticionCabina = CABINA1;
+      }
+    }
+    //Hubo presion de Subir en planta 1?
+    else if( ( false == rs_EstadoBotonesActual.Planta1_Sube ) && 
+             ( true  == rs_EstadoBotonesAnterior.Planta1_Sube ))
+    {//SI
+      //Peticion de ir a planta 1
+      re_Peticion = PLANTA1;
+
+      //Selecciona cabina que sera llamada
+      if(SUBIENDO == re_UltimaDireccion[CABINA0]) //Cabina 0 estaba subiendo?
+      {
+        //Cabina 0 ejecutara peticion
+        re_PeticionCabina = CABINA0;
+      }
+      else if(SUBIENDO == re_UltimaDireccion[CABINA1]) //Cabina 1 estaba subiendo?
+      {
+        //Cabina 1 ejecutara peticion
+        re_PeticionCabina = CABINA1;
+      }
+      else
+      {
+        //Cabina 0 ejecutara peticion
+        re_PeticionCabina = CABINA0;
+      }
+    }
+    //Hubo presion de Bajar en planta 1?
+    else if( ( false == rs_EstadoBotonesActual.Planta1_Baja ) && 
+             ( true  == rs_EstadoBotonesAnterior.Planta1_Baja ))
+    {//SI
+      //Peticion de ir a planta 1
+      re_Peticion = PLANTA1;
+
+      //Selecciona cabina que sera llamada
+      if(BAJANDO == re_UltimaDireccion[CABINA0]) //Cabina 0 estaba subiendo?
+      {
+        //Cabina 0 ejecutara peticion
+        re_PeticionCabina = CABINA0;
+      }
+      else if(BAJANDO == re_UltimaDireccion[CABINA1]) //Cabina 1 estaba subiendo?
+      {
+        //Cabina 1 ejecutara peticion
+        re_PeticionCabina = CABINA1;
+      }
+      else
+      {
+        //Cabina 0 ejecutara peticion
+        re_PeticionCabina = CABINA0;
+      }
+    }
+    //Hubo presion de Bajar en planta 2?
+    else if( ( false == rs_EstadoBotonesActual.Planta2_Baja ) && 
+             ( true  == rs_EstadoBotonesAnterior.Planta2_Baja ))
+    {//SI
+      //Peticion de ir a planta 2
+      re_Peticion = PLANTA2;
+
+      //Selecciona cabina que sera llamada
+      if(rub_PlantaActual[CABINA0] >= rub_PlantaActual[CABINA1])
+      {
+        //Cabina 0 ejecutara peticion
+        re_PeticionCabina = CABINA0;
+      }
+      else
+      {
+        //Cabina 1 ejecutara peticion
+        re_PeticionCabina = CABINA1;
+      }
+    }
+    //Ningun evento se presento
+    else
+    {
+      //Limpia variable que indica peticion pendiente
+      rub_PeticionPendiente = false;
+    }
   }
 }
 
